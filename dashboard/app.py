@@ -213,7 +213,7 @@ with tab1:
                         problem=st.session_state['current_problem'],
                         source=diag["source"],
                         root_cause=diag["root_cause"],
-                        osi_layer=diag["osi_layer"],
+                        #osi_layer=diag["osi_layer"],
                         confidence=diag["confidence"],
                         next_command=diag["next_command"],
                         proposed_fix=diag["fix"],

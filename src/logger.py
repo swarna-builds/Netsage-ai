@@ -2,53 +2,70 @@ import csv
 import os
 from datetime import datetime
 
-CSV_FILE = "data/cases.csv"
+# Define log file paths
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+CSV_FILE = os.path.join(LOG_DIR, "cases.csv")
+MD_FILE = os.path.join(LOG_DIR, "RESPONSIBLE_AI_LOG.md")
 
 def log_case(
-    problem: str, 
-    source: str, 
-    root_cause: str, 
-    osi_layer: str, 
-    confidence: str, 
-    next_command: str, 
-    proposed_fix: str, 
-    status: str, 
-    correction_reason: str = "N/A"
+    problem,
+    source="Gemini AI",
+    root_cause="",
+    next_command="",
+    proposed_fix="",
+    status="ACCEPTED",
+    correction_reason="N/A",
+    **kwargs
 ):
     """
-    Appends incident details to the cases CSV file including OSI layer,
-    confidence metrics, and human correction feedback.
+    Logs diagnostic cases and human decisions to both CSV and Markdown audit logs.
+    Captures additional fields (like osi_layer, confidence) via **kwargs safely.
     """
-    file_exists = os.path.exists(CSV_FILE) and os.path.getsize(CSV_FILE) > 0
+    # Ensure data directory exists
+    os.makedirs(LOG_DIR, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Safely extract optional fields passed from app.py
+    osi_layer = kwargs.get("osi_layer", "N/A")
+    confidence = kwargs.get("confidence", "N/A")
 
-    with open(CSV_FILE, mode="a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        
-        # Write updated header if file is new or empty
+    # 1. Append to CSV file
+    file_exists = os.path.isfile(CSV_FILE)
+    
+    fieldnames = [
+        "timestamp", "problem", "source", "root_cause", 
+        "osi_layer", "confidence", "next_command", 
+        "proposed_fix", "status", "correction_reason"
+    ]
+
+    with open(CSV_FILE, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
         if not file_exists:
-            writer.writerow([
-                "Timestamp", 
-                "Problem", 
-                "Source", 
-                "Root Cause", 
-                "OSI Layer", 
-                "Confidence", 
-                "Next Command", 
-                "Proposed Fix", 
-                "Status", 
-                "Correction Reason"
-            ])
+            writer.writeheader()
             
-        writer.writerow([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            problem,
-            source,
-            root_cause,
-            osi_layer,
-            confidence,
-            next_command,
-            proposed_fix,
-            status,
-            correction_reason
-        ])
-    print("[LOGGING] Enhanced record saved to data/cases.csv")
+        writer.writerow({
+            "timestamp": timestamp,
+            "problem": problem,
+            "source": source,
+            "root_cause": root_cause,
+            "osi_layer": osi_layer,
+            "confidence": confidence,
+            "next_command": next_command,
+            "proposed_fix": proposed_fix,
+            "status": status,
+            "correction_reason": correction_reason
+        })
+
+    # 2. Append to Markdown Governance Log
+    with open(MD_FILE, mode="a", encoding="utf-8") as file:
+        file.write(f"\n### Incident Log - {timestamp}\n")
+        file.write(f"- **Problem:** {problem}\n")
+        file.write(f"- **OSI Layer:** {osi_layer} | **Confidence:** {confidence}\n")
+        file.write(f"- **Root Cause:** {root_cause}\n")
+        file.write(f"- **Proposed Fix:**\n```cisco\n{proposed_fix}\n```\n")
+        file.write(f"- **Human Action:** `{status}`\n")
+        file.write(f"- **Auditor Notes:** {correction_reason}\n")
+        file.write("---\n")
+
+    return True
